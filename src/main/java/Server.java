@@ -2,37 +2,37 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
+import java.nio.charset.StandardCharsets;
 
 public class Server {
     public static void main(String[] args) {
-        while (true) {
-            try (ServerSocket ss = new ServerSocket(Constant.PORT);
-                 Socket socket = ss.accept();
-                 PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-                 BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
-                System.out.println("server run");
-                String input;
-                while ((input = in.readLine()) != null) {
-                    if (input.equals("end")) {
-                        out.println(input);
-                        ss.close();
+        try (final ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();) {
+            serverSocketChannel.bind(new InetSocketAddress(Constant.HOST, Constant.PORT));
+            while (true) {
+                try (SocketChannel socketChannel = serverSocketChannel.accept();) {
+                    final ByteBuffer inBuf = ByteBuffer.allocate(2<<10);
+                    while (socketChannel.isConnected()) {
+                        int bytes = socketChannel.read(inBuf);
+                        if (bytes < 0) break;
+                        String str = new String(inBuf.array(), 0, bytes, StandardCharsets.UTF_8);
+                        inBuf.clear();
+                        System.out.println("Клент: " + str);
+                        str = str.replace(" ", "");
+                        socketChannel.write(ByteBuffer.wrap(str.getBytes(StandardCharsets.UTF_8)));
                     }
-                    out.println(fibonacci(Integer.parseInt(input)));
+                } catch (IOException | NumberFormatException e) {
+                    System.out.println(e.getLocalizedMessage());
                 }
-            } catch (IOException | NumberFormatException e) {
-                System.out.println(e.getLocalizedMessage());
+
             }
-
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-    }
-
-    private static Long fibonacci(int index) {
-        Long[] fibo = new Long[index+1];
-        fibo[0] = 0L;
-        fibo[1] = 1L;
-        for (int i=2; i<fibo.length; i++) {fibo[i] = fibo[i - 1] + fibo[i - 2];}
-        return fibo[index];
     }
 }

@@ -1,20 +1,27 @@
-import java.io.*;
-import java.net.Socket;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
+import java.nio.channels.SocketChannel;
+import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
 
 public class Client {
     public static void main(String[] args) {
-        try(Socket socket = new Socket(Constant.HOST, Constant.PORT);
-            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+        InetSocketAddress socketAddress = new InetSocketAddress(Constant.HOST, Constant.PORT);
+        try(final SocketChannel socketChannel = SocketChannel.open();
             Scanner scanner = new Scanner(System.in)) {
+            socketChannel.connect(socketAddress);
+            final ByteBuffer inBuf = ByteBuffer.allocate(2<<10);
             String msg;
             while (true) {
-                System.out.println("Введите элемент последовательности Фибоначчи (>=2) или 'end' для выхода.");
+                System.out.println("Введите строку с пробелами или 'end' для выхода.");
                 msg = scanner.nextLine();
-                out.println(msg);
                 if ("end".equals(msg)) break;
-                System.out.println("Сервер: " + in.readLine());
+                socketChannel.write(ByteBuffer.wrap(msg.getBytes(StandardCharsets.UTF_8)));
+                int bytes = socketChannel.read(inBuf);
+                String str = new String(inBuf.array(), 0, bytes, StandardCharsets.UTF_8);
+                System.out.println("Сервер: " + str);
+                inBuf.clear();
             }
         } catch (IOException e) {
             e.getLocalizedMessage();
